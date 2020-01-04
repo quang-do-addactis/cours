@@ -1,0 +1,158 @@
+---
+title: "One way analysis"
+author: "Quang DO"
+date: "01/12/2019"
+output: 
+  html_document: 
+    theme: cerulean
+    toc: true
+    toc_float: true
+    number_sections: true
+    highlight: tango
+    font-family: "Arial"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+# La prime pure
+
+**Rappel**:
+ 
+ 
+ $$ S = \sum_{i=1}^N X_i$$
+ $$E[S] = E[N] * E[X]$$
+
+Modéliser la prime pure est équivalente à modéliser séparemment: 
+
+* La fréquence des sinistres
+* Le coût moyen des sinsitres
+
+# Base de données
+
+Rechargons la base de données préparées dans section précédente
+```{r data_read, warning=F, message=F}
+library(dplyr)
+library(data.table)
+library(DT)
+
+contrat = fread('data/base_contrat_cleaned.csv')
+sinistre = fread('data/base_sinistre_cleaned.csv')
+```
+
+# Pas de segmentation
+
+Dans le cas où l'assureur décide de ne pas faire de segmentation, la prime pure est identique pour tous ses assurés, et sera égale à la charge de sinistre moyenne. C'est la prime sur laquelle l'assureur se base pour déterminer son niveau de prime
+
+## Fréquence moyenne
+
+Pour le calcul de la fréquence moyenne, on doit travailler sur la base contrat. Les variables qui nous intéressent sont:
+
+* `nombre_de_sinistre`
+* `Date_Deb_Situ`
+* `Date_Fin_Situ`
+* `Exposition_au_risque`
+
+Calculons la moyenne de la variable `nombre_de_sinistre` 
+```{r}
+mean(contrat$nombre_de_sinistre)
+```
+
+Ce chiffre ne donne pas la fréquence moyenne, car tous les contrats ne sont pas exposés de la même façon. Par exemple, on peut régarder les 5 première ligne de la base contrat
+
+```{r}
+datatable(contrat[1:5, .(Num_contrat, IMMAT, Date_Deb_Situ, Date_Fin_Situ, Exposition_au_risque)])
+```
+
+Afin de calculer correctement la fréquence moyenne, il nous faut prendre en compte l'exposition au risque.
+
+```{r}
+freq = sum(contrat$nombre_de_sinistre) / sum(contrat$Exposition_au_risque)
+print(freq)
+```
+
+
+## Coût moyen moyenne
+
+Afin de calculer le coût moyenne, nous travaillons sur la base sinistre:
+
+```{r}
+cm = mean(sinistre$CHARGE_SINISTRE)
+print(cm)
+```
+
+## La prime pure
+
+La prime pure sera la multiplication de la fréquence et le coût moyen
+```{r}
+pp = freq * cm
+print(pp)
+```
+
+Hypothèse: marge = 10%
+**Conclusion**: un assureur qui ne fait pas de segmentation de tarif propose un tarif identique à `pp` * 110% = `r pp*1.1` €
+
+
+# Segmentation simple
+
+Nous pouvons merger les deux bases de données afin d'avoir une base de données de travail unique
+```{r}
+df = merge(contrat, sinistre, by = c('Num_contrat', 'IMMAT', 'Date_Deb_Situ'), all.x = T)
+```
+
+Dans la base de contrat, nous disposons beaucoup plus d'information (variables). Nous allons maintenant voir ce que nous pouvons faire avec ces variables. 
+
+Quelles sont les variables que nous disposons dans la base?
+
+```{r}
+names(df)
+```
+
+```{r}
+pp1 = df %>%
+  group_by(Activite) %>%
+  summarize(
+    N = n(),
+    freq = sum(nombre_de_sinistre) / sum(Exposition_au_risque),
+    cm = sum(CHARGE_SINISTRE, na.rm = T) / sum(nombre_de_sinistre, na.rm = T),
+    prime_pure = sum(CHARGE_SINISTRE, na.rm = T) / sum(Exposition_au_risque))
+print(pp1)
+```
+
+Nous pouvons constater que les véhicules neufs sont plus risqués que les véhicules anciens. Sous l'hypothèse de la marge constante à 10%, l'assureur B qui dispose cette information proposera donc le tarif suivant:
+
+```{r}
+pp1$tarif_assureur_B = pp1$prime_pure * 1.1
+print(pp1)
+```
+
+## Anti-sélection
+
+```{r}
+pp1$tarif_assureur_A = pp * 1.1
+print(pp1)
+```
+
+Excercice:
+Que se passe il dans ce marché?
+
+```{r}
+marche = pp1 %>%
+  mutate(
+    nb_client_A = N * (tarif_assureur_A < tarif_assureur_B),
+    nb_client_B = N * (tarif_assureur_B < tarif_assureur_A),
+    marge_A = tarif_assureur_A - prime_pure,
+    marge_B = tarif_assureur_B - prime_pure)
+datatable(t(marche))
+```
+
+La marge totale de l'assureur A qui ne fait pas de segmentation tarifaire est de `r toString(sum(marche$nb_client_A * marche$marge_A))`
+La marge totale de l'assureur B qui fait une simple segmentation est de `r toString(sum(marche$nb_client_B * marche$marge_B))`
+
+
+Exercice:
+
+* Repète l'exercice sur 2 autres variables de la base (Age, Activité, Classe_Age_Situ_Cont)
+* Quelle variable donne le meilleur résultat financier?

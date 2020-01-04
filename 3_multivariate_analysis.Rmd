@@ -1,0 +1,67 @@
+---
+title: "Introduction"
+author: "Quang DO"
+date: "01/12/2019"
+output: 
+  html_document: 
+    theme: cerulean
+    toc: true
+    toc_float: true
+    number_sections: true
+    highlight: tango
+    font-family: "Arial"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# La prime pure
+
+**Rappel**:
+ 
+ 
+ $$ S = \sum_{i=1}^N X_i$$
+ $$E[S] = E[N] * E[X]$$
+
+Modéliser la prime pure est équivalente à modéliser séparemment: 
+
+* La fréquence des sinistres
+* Le coût moyen des sinsitres
+
+# La base de données
+
+Il y a souvent deux base de données:
+
+* Une base contenant les informations de contrat (age, véhicule, formule, date de début du contrat, date de fin du contrat, ...)
+* Une base contenant les informations de sinistres (date survenance, cout de sinistre, nombre de sinistre, ....)
+
+```{r data_read, warning=F, message=F}
+library(dplyr)
+library(data.table)
+
+contrat = fread('data/train_contrats.csv')
+sinistre = fread('data/train_sinistres.csv')
+```
+
+
+regardons la base contrat & sinistre:
+
+```{r}
+str(contrat)
+```
+
+La base contrat contient `r toString(nrow(contrat))` lignes, et `r toString(ncol(contrat))` colonnes.
+
+
+```{r}
+str(sinistre)
+```
+La base sinistre contient `r toString(nrow(sinistre))` lignes, et `r toString(ncol(sinistre))` colonnes.
+
+```{r}
+View(contrat[contrat$Num_contrat == 2])
+```
+
+
+

@@ -1,0 +1,134 @@
+---
+title: "Introduction"
+author: "Quang DO"
+date: "01/12/2019"
+output: 
+  html_document: 
+    theme: cerulean
+    toc: true
+    toc_float: true
+    number_sections: true
+    highlight: tango
+    font-family: "Arial"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+# Les bases de données
+
+En général, il y a deux base de données:
+
+* Base contrat, contient les informations suivantes: 
+
+    - Informations personnelles: age, sexe, l'expérience de conduite de l'assuré, ...
+    - Informations du véhicule: age, marque, modèle, puissance, ...
+    - Informations du contrat: date de début, date de fin, formule assuré, ...
+    - Antécédent d'assurance: oui /non, Bonus Malus, historique des sinistres, ...
+* Une base contenant les informations de sinistres (date survenance, cout de sinistre, nombre de sinistre, ....):
+    - Date de survenance
+    - Date de déclaration
+    - Montant de sinistres
+    - ...
+
+# La base de données du TD
+
+Ces bases de données ont été utilisées pour le Pricing Game organisé par Arthur Charpentier. Le jeu de données contient deux base de données comme expliqué précédemment
+
+```{r data_read, warning=F, message=F}
+library(dplyr)
+library(data.table)
+library(DT)
+contrat = fread('data/train_contrats.csv')
+sinistre = fread('data/train_sinistres.csv')
+```
+
+## Apperçu des bases
+Pour visualiser la base de données, on utilise la fonction `head()`, cette fonction affiche les 6 premières lignes de la base
+
+```{r}
+datatable(head(contrat))
+```
+
+Afin de visualiser plus de ligne de la base, on peut utiliser l'argument `n=10` pour visualiser les 10 premières observations de la base.
+
+```{r}
+datatable(head(contrat, n = 10))
+```
+
+Regardons également la base sinistre:
+
+```{r}
+datatable(head(sinistre))
+```
+
+
+## Data cleansing
+
+### Base contrat
+On peut examiner les types des colonnes, dans R, il y a principalement 3 types de données:
+ - numeric
+ - characters
+ - factor
+
+```{r}
+str(contrat)
+```
+
+
+Les variables suivantes ne sont pas au bon format:
+
+* `Date_Deb_Situ`
+* `Date_Fin_Situ`
+* `Classe_Age_Situ_Cont`
+* `Age_du_vehicule`
+* `franchise`
+
+
+Nous devons transformer ces colonnes afin qu'elles apportent de la valeur
+
+```{r}
+# transformation des date
+contrat$Date_Deb_Situ = as.Date(contrat$Date_Deb_Situ, format = '%d/%m/%Y')
+contrat$Date_Fin_Situ = as.Date(contrat$Date_Fin_Situ, format = '%d/%m/%Y')
+
+# transformation de la classe d'age
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "<= 1 ans", "0", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "1 - 2 ans", "1", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "2 - 3 ans", "2", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "3 - 4 ans", "3", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "4 - 5 ans", "4", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = if_else(contrat$Classe_Age_Situ_Cont == "> 5 ans", "5", contrat$Classe_Age_Situ_Cont)
+contrat$Classe_Age_Situ_Cont = as.numeric(contrat$Classe_Age_Situ_Cont)
+```
+
+Regardons maintenant la variable transformée:
+```{r}
+head(contrat$Classe_Age_Situ_Cont)
+```
+
+
+1. Quels sont les autres variables qui ne sont pas au bon format?
+2. Transforme les au bon format
+
+
+
+
+### Base sinistre
+```{r}
+str(sinistre)
+```
+
+La même chose que la base contrat
+
+```{r}
+sinistre$Date_Deb_Situ = as.Date(sinistre$Date_Deb_Situ, format = '%d/%m/%Y')
+sinistre$Date_Fin_Situ = as.Date(sinistre$Date_Fin_Situ, format = '%d/%m/%Y')
+```
+
+# Enregistrement des résultats
+```{r}
+fwrite(contrat, 'data/base_contrat_cleaned.csv')
+fwrite(sinistre, 'data/base_sinistre_cleaned.csv')
+```
+
